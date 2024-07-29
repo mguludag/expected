@@ -337,7 +337,7 @@ class expected {
      */
     constexpr T& value() & {
         if (!has_value()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<T>(result_);
     }
@@ -350,7 +350,7 @@ class expected {
      */
     constexpr const T& value() const& {
         if (!has_value()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<T>(result_);
     }
@@ -363,7 +363,7 @@ class expected {
      */
     constexpr T&& value() && {
         if (!has_value()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<T>(std::move(result_));
     }
@@ -378,7 +378,7 @@ class expected {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::get<unexpected<E>>(result_).error();
     }
@@ -393,7 +393,7 @@ class expected {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::get<unexpected<E>>(result_).error();
     }
@@ -408,7 +408,7 @@ class expected {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::move(std::get<unexpected<E>>(result_).error());
     }
@@ -423,7 +423,7 @@ class expected {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::move(std::get<unexpected<E>>(result_).error());
     }
@@ -439,7 +439,7 @@ class expected {
     template <typename Error>
     constexpr const Error& error() const& {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<unexpected<Error>>(result_).error();
     }
@@ -455,7 +455,7 @@ class expected {
     template <typename Error>
     constexpr Error& error() & {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<unexpected<Error>>(result_).error();
     }
@@ -471,7 +471,7 @@ class expected {
     template <typename Error>
     constexpr const Error&& error() const&& {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::move(std::get<unexpected<Error>>(result_).error());
     }
@@ -487,7 +487,7 @@ class expected {
     template <typename Error>
     constexpr Error&& error() && {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::move(std::get<unexpected<Error>>(result_).error());
     }
@@ -819,19 +819,19 @@ class expected {
             result_);
     }
 
-    // Helper function to create a bad_expected_access with the correct error
+    // Helper function to throw a bad_expected_access with the correct error
     // type
-    bad_expected_access<void> make_bad_expected_access() const {
+    void throw_bad_expected_access() const {
         if (has_error<E>()) {
-            return bad_expected_access<E>(error<E>());
+            THROW_EXCEPTION(bad_expected_access<E>(error<E>()));
         } else {
-            return std::visit(
+            std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
                     using ArgType = std::decay_t<decltype(arg)>;
                     if constexpr (!std::is_same_v<ArgType, std::monostate>) {
-                        return bad_expected_access<ArgType>(arg);
+                        THROW_EXCEPTION(bad_expected_access<ArgType>(arg));
                     } else {
-                        return bad_expected_access<void>();
+                        THROW_EXCEPTION(bad_expected_access<void>());
                     }
                 },
                 result_);
@@ -939,7 +939,7 @@ class expected<void, E, Es...> {
      */
     constexpr void value() const {
         if (!has_value()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
     }
 
@@ -953,7 +953,7 @@ class expected<void, E, Es...> {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::get<unexpected<E>>(result_).error();
     }
@@ -968,7 +968,7 @@ class expected<void, E, Es...> {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::get<unexpected<E>>(result_).error();
     }
@@ -983,7 +983,7 @@ class expected<void, E, Es...> {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::move(std::get<unexpected<E>>(result_).error());
     }
@@ -998,7 +998,7 @@ class expected<void, E, Es...> {
     template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            THROW_EXCEPTION(bad_expected_access<void>());
         }
         return std::move(std::get<unexpected<E>>(result_).error());
     }
@@ -1014,7 +1014,7 @@ class expected<void, E, Es...> {
     template <typename Error>
     constexpr const Error& error() const& {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<unexpected<Error>>(result_).error();
     }
@@ -1030,7 +1030,7 @@ class expected<void, E, Es...> {
     template <typename Error>
     constexpr Error& error() & {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::get<unexpected<Error>>(result_).error();
     }
@@ -1046,7 +1046,7 @@ class expected<void, E, Es...> {
     template <typename Error>
     constexpr const Error&& error() const&& {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::move(std::get<unexpected<Error>>(result_).error());
     }
@@ -1062,7 +1062,7 @@ class expected<void, E, Es...> {
     template <typename Error>
     constexpr Error&& error() && {
         if (has_value() || !has_error<Error>()) {
-            THROW_EXCEPTION(make_bad_expected_access());
+            throw_bad_expected_access();
         }
         return std::move(std::get<unexpected<Error>>(result_).error());
     }
@@ -1280,19 +1280,19 @@ class expected<void, E, Es...> {
             result_);
     }
 
-    // Helper function to create a bad_expected_access with the correct error
+    // Helper function to throw a bad_expected_access with the correct error
     // type
-    bad_expected_access<void> make_bad_expected_access() const {
+    void throw_bad_expected_access() const {
         if (has_error<E>()) {
-            return bad_expected_access<E>(error<E>());
+            THROW_EXCEPTION(bad_expected_access<E>(error<E>()));
         } else {
-            return std::visit(
+            std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
                     using ArgType = std::decay_t<decltype(arg)>;
                     if constexpr (!std::is_same_v<ArgType, std::monostate>) {
-                        return bad_expected_access<ArgType>(arg);
+                        THROW_EXCEPTION(bad_expected_access<ArgType>(arg));
                     } else {
-                        return bad_expected_access<void>();
+                        THROW_EXCEPTION(bad_expected_access<void>());
                     }
                 },
                 result_);
