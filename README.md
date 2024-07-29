@@ -23,7 +23,7 @@ git clone https://github.com/mguludag/expected.git
 ```
 Include the `include` directory in your project.
 
-## Usage
+## [Usage](https://godbolt.org/z/jWfa857bn)
 
 ### Basic Example
 Here's a simple example of how to use `expected` with multiple error types:
