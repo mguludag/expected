@@ -12,6 +12,7 @@ An extended version of C++23's `std::expected<T, E>` to handle variadic errors, 
 - [License](#license)
 
 ## Features
+- Supports from C++17
 - Supports multiple error types.
 - Enhances standard `std::expected` functionality.
 
