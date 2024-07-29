@@ -47,7 +47,7 @@ int main() {
 ### Advanced Example
 
 
-#### Using `.and_then` and `.or_else` per Error Type and using `.transform`
+#### Using `.and_then` for success and `.or_else` per Error Type and using `.transform`
 * Chain operations that depend on the success of the previous one, and handle specific errors with `or_else`
 * Transform the value inside `expected` if it is present
 ```cpp
