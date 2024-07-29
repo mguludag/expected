@@ -310,6 +310,7 @@ class expected {
      * @return true if the object contains an unexpected error of type E, false
      * otherwise.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr bool has_error() const noexcept {
         return std::holds_alternative<unexpected<E>>(result_);
     }
@@ -373,6 +374,7 @@ class expected {
      * @return const E& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -387,6 +389,7 @@ class expected {
      * @return E& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -401,6 +404,7 @@ class expected {
      * @return const E&& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -415,6 +419,7 @@ class expected {
      * @return E&& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -817,7 +822,7 @@ class expected {
     // type
     bad_expected_access<void> make_bad_expected_access() const {
         if (has_error<E>()) {
-            return bad_expected_access<E>(error());
+            return bad_expected_access<E>(error<E>());
         } else {
             return std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
@@ -907,6 +912,7 @@ class expected<void, E, Es...> {
      * @return true if the object contains an unexpected error of type E, false
      * otherwise.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr bool has_error() const noexcept {
         return std::holds_alternative<unexpected<E>>(result_);
     }
@@ -943,6 +949,7 @@ class expected<void, E, Es...> {
      * @return const E& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -957,6 +964,7 @@ class expected<void, E, Es...> {
      * @return E& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -971,6 +979,7 @@ class expected<void, E, Es...> {
      * @return const E&& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -985,6 +994,7 @@ class expected<void, E, Es...> {
      * @return E&& The error.
      * @throws std::runtime_error If there is no error.
      */
+    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(make_bad_expected_access());
@@ -1273,7 +1283,7 @@ class expected<void, E, Es...> {
     // type
     bad_expected_access<void> make_bad_expected_access() const {
         if (has_error<E>()) {
-            return bad_expected_access<E>(error());
+            return bad_expected_access<E>(error<E>());
         } else {
             return std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
