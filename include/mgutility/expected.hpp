@@ -26,6 +26,7 @@ SOFTWARE.
 #define MGUTILITY_EXPECTED_HPP
 
 #include <cstdlib>  // For std::terminate
+#include <system_error>
 #include <optional>
 #include <stdexcept>
 #include <type_traits>
