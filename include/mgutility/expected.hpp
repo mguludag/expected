@@ -156,6 +156,9 @@ class bad_expected_access : public bad_expected_access<void> {
 template <typename E>
 class unexpected {
    public:
+
+   using value_type = E;
+
     /**
      * @brief Constructs an unexpected object with an error.
      *
@@ -830,8 +833,12 @@ class expected {
             std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
                     using ArgType = std::decay_t<decltype(arg)>;
-                    if constexpr (!std::is_same_v<ArgType, std::monostate>) {
-                        THROW_EXCEPTION(bad_expected_access<ArgType>(arg));
+                    if constexpr (!std::is_same_v<ArgType, std::monostate> &&
+                                  !std::is_same_v<ArgType, T> &&
+                                  !std::is_same_v<ArgType, E>) {
+                        using ErrorType = typename ArgType::value_type;
+                        THROW_EXCEPTION(
+                            bad_expected_access<ErrorType>(arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
@@ -1293,8 +1300,11 @@ class expected<void, E, Es...> {
             std::visit(
                 [](auto&& arg) -> bad_expected_access<void> {
                     using ArgType = std::decay_t<decltype(arg)>;
-                    if constexpr (!std::is_same_v<ArgType, std::monostate>) {
-                        THROW_EXCEPTION(bad_expected_access<ArgType>(arg));
+                    if constexpr (!std::is_same_v<ArgType, std::monostate> &&
+                                  !std::is_same_v<ArgType, E>) {
+                        using ErrorType = typename ArgType::value_type;
+                        THROW_EXCEPTION(
+                            bad_expected_access<ErrorType>(arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
