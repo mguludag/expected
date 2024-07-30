@@ -30,8 +30,8 @@ Here's a simple example of how to use `expected` with multiple error types:
 ```cpp
 #include <mgutility/expected.hpp>
 
-expected<int, std::string> divide(int a, int b) {
-    if (b == 0) return unexpected{"Division by zero"};
+mgutility::expected<int, std::string> divide(int a, int b) {
+    if (b == 0) return mgutility::unexpected{"Division by zero"};
     return a / b;
 }
 
@@ -56,13 +56,13 @@ int main() {
 #include <string>
 #include <system_error>
 
-expected<int, std::string, std::error_code> divide(int a, int b) {
-    if (b == 0) return unexpected{"Division by zero"};
-    if (a < 0) return unexpected{std::make_error_code(std::errc::invalid_argument)};
+mgutility::expected<int, std::string, std::error_code> divide(int a, int b) {
+    if (b == 0) return mgutility::unexpected{"Division by zero"};
+    if (a < 0) return mgutility::unexpected{std::make_error_code(std::errc::invalid_argument)};
     return a / b;
 }
 
-expected<int, std::string, std::error_code> addOne(int x) {
+mgutility::expected<int, std::string, std::error_code> addOne(int x) {
     return x + 1;
 }
 
@@ -72,11 +72,11 @@ int main() {
         .transform([](int x) { return x * 2; })
         .or_else([](const std::string& err) {
             std::cerr << "String error: " << err << std::endl;
-            return unexpected("Handled string error");
+            return mgutility::unexpected("Handled string error");
         })
         .or_else([](const std::error_code& err) {
             std::cerr << "Error code: " << err.message() << std::endl;
-            return unexpected(err);
+            return mgutility::unexpected(err);
         });
 
     if (result) {
