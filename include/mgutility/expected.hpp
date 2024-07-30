@@ -822,7 +822,9 @@ class expected {
     // Helper function to throw a bad_expected_access with the correct error
     // type
     void throw_bad_expected_access() const {
-        if (has_error<E>()) {
+        if (has_value()) {
+            THROW_EXCEPTION(bad_expected_access<void>());
+        } else if (has_error<E>()) {
             THROW_EXCEPTION(bad_expected_access<E>(error<E>()));
         } else {
             std::visit(
@@ -1283,7 +1285,9 @@ class expected<void, E, Es...> {
     // Helper function to throw a bad_expected_access with the correct error
     // type
     void throw_bad_expected_access() const {
-        if (has_error<E>()) {
+        if (has_value()) {
+            THROW_EXCEPTION(bad_expected_access<void>());
+        } else if (has_error<E>()) {
             THROW_EXCEPTION(bad_expected_access<E>(error<E>()));
         } else {
             std::visit(
