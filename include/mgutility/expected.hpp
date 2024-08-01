@@ -43,10 +43,6 @@ namespace mgutility {
 #endif
 
 namespace detail {
-
-template <typename... Ts>
-struct type_list{};
-
 // Helper metafunction to check if a type is in a list of types
 template <typename T, typename... Ts>
 struct is_one_of;
@@ -236,7 +232,6 @@ class expected {
    public:
     using value_type = T;
     using error_type = E;
-    using error_types = detail::type_list<Es...>;
 
     /**
      * @brief Constructs an expected object with a value.
@@ -666,13 +661,12 @@ class expected {
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -689,13 +683,12 @@ class expected {
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -712,14 +705,12 @@ class expected {
         std::is_nothrow_invocable<F, T&&>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
-
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -820,23 +811,6 @@ class expected {
             [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (!std::is_same_v<ArgType, T>) {
-                    return arg;
-                } else if constexpr (std::is_same_v<typename Exp::value_type,
-                                                    void>) {
-                    return std::monostate{};
-                } else {
-                    return typename Exp::value_type{};
-                }
-            },
-            result_);
-    }
-
-    template <typename Arg, typename Exp>
-    Exp transform_unexpected() {
-        return std::visit(
-            [](auto&& arg) -> Exp {
-                using ArgType = std::decay_t<decltype(arg)>;
-                if constexpr (!std::is_same_v<ArgType, unexpected<Arg>> || std::is_same_v<ArgType, T>) {
                     return arg;
                 } else if constexpr (std::is_same_v<typename Exp::value_type,
                                                     void>) {
@@ -1172,13 +1146,12 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F, E&>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -1195,13 +1168,12 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F, const E&>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -1218,13 +1190,12 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F, E&&>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
                       "Given functor argument type not exists!");
         if (!has_value() && has_error<Arg>()) {
-            return f(std::get<unexpected<Arg>>(result_).error());
+            return Result(f(std::get<unexpected<Arg>>(result_).error()));
         } else {
-            return transform_unexpected<Arg, RetType>();
+            return *this;
         }
     }
 
@@ -1311,23 +1282,6 @@ class expected<void, E, Es...> {
                 using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<typename Exp::value_type, void>) {
                     return typename Exp::value_type{};
-                } else {
-                    return typename Exp::value_type{};
-                }
-            },
-            result_);
-    }
-
-    template <typename Arg, typename Exp>
-    Exp transform_unexpected() {
-        return std::visit(
-            [](auto&& arg) -> Exp {
-                using ArgType = std::decay_t<decltype(arg)>;
-                if constexpr (!std::is_same_v<ArgType, unexpected<Arg>> && std::is_same_v<typename Exp::value_type, void>) {
-                    return arg;
-                } else if constexpr (std::is_same_v<typename Exp::value_type,
-                                                    void>) {
-                    return std::monostate{};
                 } else {
                     return typename Exp::value_type{};
                 }
