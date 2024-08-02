@@ -23,7 +23,7 @@ git clone https://github.com/mguludag/expected.git
 ```
 Include the `include` directory in your project.
 
-## [Usage](https://godbolt.org/z/jWfa857bn)
+## [Usage](https://godbolt.org/z/heKaEhdE1)
 
 ### Basic Example
 Here's a simple example of how to use `expected` with multiple error types:
@@ -70,21 +70,21 @@ int main() {
     auto result = divide(10, 2)
         .and_then(addOne)
         .transform([](int x) { return x * 2; })
-        .or_else([](const std::string& err) {
+        .or_else([](const std::string& err) -> mgutility::expected<int, std::string, std::error_code> {
             std::cerr << "String error: " << err << std::endl;
             return mgutility::unexpected("Handled string error");
         })
-        .or_else([](const std::error_code& err) {
+        .or_else([](const std::error_code& err) -> mgutility::expected<int, std::string> {
             std::cerr << "Error code: " << err.message() << std::endl;
-            return mgutility::unexpected(err);
+            return mgutility::unexpected(err.message());
         });
 
     if (result) {
         std::cout << "Result: " << *result << std::endl;
-    } else if (result.has_error<std::string>()) {
-        // use result.error<std::string>()
+    } else if (result.has_error<std::error_code>()) {
+        // use result.error<std::error_code>()
     } else {
-      // use result.error<std::error_code>()
+      // use result.error<std::string>()
     }
 }
 ```
