@@ -662,7 +662,9 @@ class expected {
     template <typename F>
     constexpr auto and_then(F&& f) & noexcept(
         std::is_nothrow_invocable<F, T&>::value) {
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f(operator*());
         } else {
@@ -681,7 +683,9 @@ class expected {
     template <typename F>
     constexpr auto and_then(F&& f) const& noexcept(
         std::is_nothrow_invocable<F, const T&>::value) {
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f(operator*());
         } else {
@@ -700,7 +704,9 @@ class expected {
     template <typename F>
     constexpr auto and_then(F&& f) && noexcept(
         std::is_nothrow_invocable<F, T&&>::value) {
-         using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
+         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+         using RetType = std::invoke_result_t<F, Arg>;
+         static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f(std::move(operator*()));
         } else {
@@ -811,6 +817,8 @@ class expected {
     constexpr auto transform(F&& f) & noexcept(
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f(value()));
         }
@@ -830,8 +838,10 @@ class expected {
     constexpr auto transform(F&& f) const& noexcept(
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
-            return Result(f(value()));
+            return Result(f(operator*()));
         }
         return *this;
     }
@@ -849,8 +859,10 @@ class expected {
     constexpr auto transform(F&& f) && noexcept(
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
-            return Result(f(value()));
+            return Result(f(operator*()));
         }
         return *this;
     }
@@ -1201,7 +1213,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) & noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using RetType = std::invoke_result_t<F>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f();
         } else {
@@ -1220,7 +1234,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) const& noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using RetType = std::invoke_result_t<F>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f();
         } else {
@@ -1239,7 +1255,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) && noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using RetType = std::invoke_result_t<F>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return f();
         } else {
@@ -1350,6 +1368,8 @@ class expected<void, E, Es...> {
     constexpr auto transform(F&& f) & noexcept(
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
         }
@@ -1369,6 +1389,8 @@ class expected<void, E, Es...> {
     constexpr auto transform(F&& f) const& noexcept(
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
         }
@@ -1388,6 +1410,8 @@ class expected<void, E, Es...> {
     constexpr auto transform(F&& f) && noexcept(
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
         }
