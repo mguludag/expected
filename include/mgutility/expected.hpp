@@ -928,7 +928,7 @@ class expected {
     template <typename OldE, typename Exp, typename... NewEs>
     Exp transform_unexpected(std::tuple<NewEs...>) const {
         return std::visit(
-            [this](auto&& arg) -> Exp {
+            [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
                     return arg;
@@ -956,9 +956,8 @@ class expected {
                     if constexpr (!std::is_same_v<ArgType, std::monostate> &&
                                   !std::is_same_v<ArgType, T> &&
                                   !std::is_same_v<ArgType, E>) {
-                        using ErrorType = typename ArgType::value_type;
                         THROW_EXCEPTION(
-                            bad_expected_access<ErrorType>(arg.error()));
+                            bad_expected_access<typename ArgType::value_type>(arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
@@ -1446,7 +1445,7 @@ class expected<void, E, Es...> {
     template <typename Exp>
     Exp transform_expected() {
         return std::visit(
-            [](auto&& arg) -> Exp {
+            [](auto&&) -> Exp {
                 if constexpr (std::is_same_v<typename Exp::value_type, void>) {
                     return typename Exp::value_type{};
                 } else {
@@ -1460,7 +1459,7 @@ class expected<void, E, Es...> {
     template <typename OldE, typename Exp, typename... NewEs>
     Exp transform_unexpected(std::tuple<NewEs...>) const {
         return std::visit(
-            [this](auto&& arg) -> Exp {
+            [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
                     return arg;
@@ -1489,9 +1488,8 @@ class expected<void, E, Es...> {
                     using ArgType = std::decay_t<decltype(arg)>;
                     if constexpr (!std::is_same_v<ArgType, std::monostate> &&
                                   !std::is_same_v<ArgType, E>) {
-                        using ErrorType = typename ArgType::value_type;
                         THROW_EXCEPTION(
-                            bad_expected_access<ErrorType>(arg.error()));
+                            bad_expected_access<typename ArgType::value_type>(arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
