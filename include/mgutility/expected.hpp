@@ -1351,7 +1351,7 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         if (has_value()) {
-            f();
+            return Result(f());
         }
         return *this;
     }
@@ -1370,7 +1370,7 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         if (has_value()) {
-            f();
+            return Result(f());
         }
         return *this;
     }
@@ -1389,7 +1389,7 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         if (has_value()) {
-            f();
+            return Result(f());
         }
         return *this;
     }
@@ -1423,7 +1423,6 @@ class expected<void, E, Es...> {
     Exp transform_expected() {
         return std::visit(
             [](auto&& arg) -> Exp {
-                using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<typename Exp::value_type, void>) {
                     return typename Exp::value_type{};
                 } else {
