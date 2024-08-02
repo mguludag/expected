@@ -43,17 +43,29 @@ namespace mgutility {
 #endif
 
 namespace detail {
+// Helper to trigger static_assert for unhandled types
+template <typename T>
+struct always_false : std::false_type {};
+
 // Helper metafunction to check if a type is in a list of types
 template <typename T, typename... Ts>
 struct is_one_of;
 
 template <typename T>
-struct is_one_of<T> : std::false_type {};
+struct is_one_of<T> : std::false_type {
+    using type = T;
+};
 
 template <typename T, typename First, typename... Rest>
 struct is_one_of<T, First, Rest...>
     : std::conditional_t<std::is_same_v<T, First>, std::true_type,
-                         is_one_of<T, Rest...>> {};
+                         is_one_of<T, Rest...>> {
+    using type = T;
+};
+
+// Helper alias template
+template <typename T, typename... Ts>
+constexpr bool is_one_of_v = is_one_of<T, Ts...>::value;
 
 // Type trait to check if a type is in a std::variant
 template <typename T, typename Variant>
@@ -87,7 +99,50 @@ decltype(first_argument_helper(&F::operator())) first_argument_helper(F);
 template <typename T>
 using first_argument = decltype(first_argument_helper(std::declval<T>()));
 
+// Helper to find the new error type corresponding to old error types
+template <typename OldEs, typename NewEs>
+struct find_new_error_type_impl;
+
+template <typename... OldEs, typename... NewEs>
+struct find_new_error_type_impl<std::tuple<OldEs...>, std::tuple<NewEs...>> {
+    using type = std::tuple<NewEs...>;
+};
+
+template <typename OldE, typename... OldEs, typename NewE, typename... NewEs>
+struct find_new_error_type_impl<std::tuple<OldE, OldEs...>,
+                                std::tuple<NewE, NewEs...>> {
+    using type = typename find_new_error_type_impl<std::tuple<OldEs...>,
+                                                   std::tuple<NewE>>::type;
+};
+
+template <typename... OldEs, typename NewE, typename... NewEs>
+struct find_new_error_type_impl<std::tuple<OldEs...>,
+                                std::tuple<NewE, NewEs...>> {
+    using type = std::conditional_t<
+        is_one_of_v<NewE, OldEs...>,
+        typename find_new_error_type_impl<std::tuple<OldEs...>,
+                                          std::tuple<NewEs...>>::type,
+        NewE>;
+};
+
+template <typename OldEs, typename NewEs>
+using find_new_error_type_t =
+    typename find_new_error_type_impl<OldEs, NewEs>::type;
+
 }  // namespace detail
+
+template <typename E>
+class unexpected;
+
+// Helper type trait to check if a type is an unexpected type
+template <typename T>
+struct is_unexpected : std::false_type {};
+
+template <typename E>
+struct is_unexpected<unexpected<E>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_unexpected_v = is_unexpected<T>::value;
 
 struct unexpect_t {
     explicit unexpect_t() = default;
@@ -156,8 +211,7 @@ class bad_expected_access : public bad_expected_access<void> {
 template <typename E>
 class unexpected {
    public:
-
-   using value_type = E;
+    using value_type = E;
 
     /**
      * @brief Constructs an unexpected object with an error.
@@ -232,6 +286,7 @@ class expected {
    public:
     using value_type = T;
     using error_type = E;
+    using error_types = std::tuple<Es...>;
 
     /**
      * @brief Constructs an expected object with a value.
@@ -314,7 +369,8 @@ class expected {
      * @return true if the object contains an unexpected error of type E, false
      * otherwise.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr bool has_error() const noexcept {
         return std::holds_alternative<unexpected<E>>(result_);
     }
@@ -333,10 +389,10 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws an exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
      *
      * @return T& The value.
-     * @throws std::runtime_error If there is no value.
+     * @throws bad_expected_access<void> If there is no value.
      */
     constexpr T& value() & {
         if (!has_value()) {
@@ -346,10 +402,10 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws an exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
      *
      * @return const T& The value.
-     * @throws std::runtime_error If there is no value.
+     * @throws bad_expected_access<void> If there is no value.
      */
     constexpr const T& value() const& {
         if (!has_value()) {
@@ -359,10 +415,10 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws an exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
      *
      * @return T&& The value.
-     * @throws std::runtime_error If there is no value.
+     * @throws bad_expected_access<void> If there is no value.
      */
     constexpr T&& value() && {
         if (!has_value()) {
@@ -372,13 +428,14 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return const E& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -387,13 +444,14 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return E& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -402,13 +460,14 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return const E&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -417,13 +476,14 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return E&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -432,12 +492,12 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws an exception if
+     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
      * there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr const Error& error() const& {
@@ -448,12 +508,12 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws an exception if
+     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
      * there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr Error& error() & {
@@ -464,12 +524,12 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws an exception if
+     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
      * there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr const Error&& error() const&& {
@@ -480,12 +540,12 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws an exception if
+     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
      * there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr Error&& error() && {
@@ -500,28 +560,28 @@ class expected {
      *
      * @return T& The value.
      */
-    constexpr T& operator*() & noexcept { return value(); }
+    constexpr T& operator*() & noexcept { return noexcept_get<T>(); }
 
     /**
      * @brief Dereference operator to access the value.
      *
      * @return const T& The value.
      */
-    constexpr const T& operator*() const& noexcept { return value(); }
+    constexpr const T& operator*() const& noexcept { return noexcept_get<T>(); }
 
     /**
      * @brief Dereference operator to access the value.
      *
      * @return T&& The value.
      */
-    constexpr T&& operator*() && noexcept { return std::move(*this).value(); }
+    constexpr T&& operator*() && noexcept { return std::move(*this).template noexcept_get<T>(); }
 
     /**
      * @brief Arrow operator to access the value.
      *
      * @return T* Pointer to the value.
      */
-    constexpr T* operator->() noexcept { return std::addressof(value()); }
+    constexpr T* operator->() noexcept { return std::addressof(noexcept_get<T>()); }
 
     /**
      * @brief Arrow operator to access the value.
@@ -529,7 +589,7 @@ class expected {
      * @return const T* Pointer to the value.
      */
     constexpr const T* operator->() const noexcept {
-        return std::addressof(value());
+        return std::addressof(noexcept_get<T>());
     }
 
     /**
@@ -543,7 +603,7 @@ class expected {
     template <typename U>
     constexpr T value_or(U&& default_value) const& noexcept(
         std::is_nothrow_copy_constructible<T>::value) {
-        return has_value() ? value()
+        return has_value() ? operator*()
                            : static_cast<T>(std::forward<U>(default_value));
     }
 
@@ -558,7 +618,7 @@ class expected {
     template <typename U>
     constexpr T value_or(U&& default_value) && noexcept(
         std::is_nothrow_move_constructible<T>::value) {
-        return has_value() ? std::move(value())
+        return has_value() ? std::move(operator*())
                            : static_cast<T>(std::forward<U>(default_value));
     }
 
@@ -572,7 +632,7 @@ class expected {
      */
     template <typename Error>
     constexpr auto error_or(Error&& default_error) const& noexcept {
-        return has_error<Error>() ? std::get<unexpected<Error>>(result_).error()
+        return has_error<Error>() ? noexcept_get<unexpected<Error>>().error()
                                   : default_error;
     }
 
@@ -587,7 +647,7 @@ class expected {
     template <typename Error>
     constexpr auto error_or(Error&& default_error) && noexcept {
         return has_error<Error>()
-                   ? std::move(std::get<unexpected<Error>>(result_).error())
+                   ? std::move(noexcept_get<unexpected<Error>>().error())
                    : default_error;
     }
 
@@ -604,7 +664,7 @@ class expected {
         std::is_nothrow_invocable<F, T&>::value) {
         using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         if (has_value()) {
-            return f(value());
+            return f(operator*());
         } else {
             return transform_expected<RetType>();
         }
@@ -623,7 +683,7 @@ class expected {
         std::is_nothrow_invocable<F, const T&>::value) {
         using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         if (has_value()) {
-            return f(value());
+            return f(operator*());
         } else {
             return transform_expected<RetType>();
         }
@@ -640,9 +700,9 @@ class expected {
     template <typename F>
     constexpr auto and_then(F&& f) && noexcept(
         std::is_nothrow_invocable<F, T&&>::value) {
-        using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
+         using RetType = std::invoke_result_t<F, detail::first_argument<F>>;
         if (has_value()) {
-            return f(std::move(value()));
+            return f(std::move(operator*()));
         } else {
             return transform_expected<RetType>();
         }
@@ -659,14 +719,22 @@ class expected {
     template <typename F>
     constexpr auto or_else(F&& f) & noexcept(
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
-        using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+        
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -681,14 +749,22 @@ class expected {
     template <typename F>
     constexpr auto or_else(F&& f) const& noexcept(
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
-        using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -703,14 +779,22 @@ class expected {
     template <typename F>
     constexpr auto or_else(F&& f) && noexcept(
         std::is_nothrow_invocable<F, T&&>::value) {
-        using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -805,6 +889,12 @@ class expected {
     constexpr explicit operator bool() const noexcept { return has_value(); }
 
    private:
+    template <typename Type>
+    Type& noexcept_get()
+    {
+        return *std::get_if<Type>(&result_);
+    }
+
     template <typename Exp>
     Exp transform_expected() {
         return std::visit(
@@ -817,6 +907,24 @@ class expected {
                     return std::monostate{};
                 } else {
                     return typename Exp::value_type{};
+                }
+            },
+            result_);
+    }
+
+    // Helper to transform unexpected types
+    template <typename OldE, typename Exp, typename... NewEs>
+    Exp transform_unexpected(std::tuple<NewEs...>) const {
+        return std::visit(
+            [this](auto&& arg) -> Exp {
+                using ArgType = std::decay_t<decltype(arg)>;
+                if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
+                    return arg;
+                } else {
+                    using NewE = detail::find_new_error_type_t<
+                        std::tuple<E, Es...>,
+                        std::tuple<typename Exp::error_type, NewEs...>>;
+                    return unexpected(NewE{});
                 }
             },
             result_);
@@ -859,6 +967,7 @@ class expected<void, E, Es...> {
    public:
     using value_type = void;
     using error_type = E;
+    using error_types = std::tuple<Es...>;
 
     /**
      * @brief Constructs an expected object with no value (void specialization).
@@ -922,7 +1031,8 @@ class expected<void, E, Es...> {
      * @return true if the object contains an unexpected error of type E, false
      * otherwise.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr bool has_error() const noexcept {
         return std::holds_alternative<unexpected<E>>(result_);
     }
@@ -944,7 +1054,7 @@ class expected<void, E, Es...> {
      * @brief Checks if the expected object contains a value and throws an
      * exception if not.
      *
-     * @throws std::runtime_error If there is no value.
+     * @throws bad_expected_access<E> If there is no value.
      */
     constexpr void value() const {
         if (!has_value()) {
@@ -953,13 +1063,14 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return const E& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E& error() const& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -968,13 +1079,14 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return E& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr E& error() & {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -983,13 +1095,14 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return const E&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr const E&& error() const&& {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -998,13 +1111,14 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws an exception if
+     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
      * there is no error.
      *
      * @return E&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<E> If there is no error.
      */
-    template <bool HasSingleError = (sizeof...(Es) == 0), std::enable_if_t<HasSingleError, int> = 0>
+    template <bool HasSingleError = (sizeof...(Es) == 0),
+              std::enable_if_t<HasSingleError, int> = 0>
     constexpr E&& error() && {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
@@ -1013,12 +1127,12 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws an exception
+     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
      * if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr const Error& error() const& {
@@ -1029,12 +1143,12 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws an exception
+     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
      * if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr Error& error() & {
@@ -1045,12 +1159,12 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws an exception
+     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
      * if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr const Error&& error() const&& {
@@ -1061,12 +1175,12 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws an exception
+     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
      * if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error&& The error.
-     * @throws std::runtime_error If there is no error.
+     * @throws bad_expected_access<Error> If there is no error.
      */
     template <typename Error>
     constexpr Error&& error() && {
@@ -1144,14 +1258,22 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto or_else(F&& f) & noexcept(
         std::is_nothrow_invocable<F, E&>::value) {
-        using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+        
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -1166,14 +1288,22 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto or_else(F&& f) const& noexcept(
         std::is_nothrow_invocable<F, const E&>::value) {
-        using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+        
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -1188,14 +1318,22 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto or_else(F&& f) && noexcept(
         std::is_nothrow_invocable<F, E&&>::value) {
-        using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(detail::is_in_variant_v<unexpected<Arg>, decltype(result_)>,
-                      "Given functor argument type not exists!");
+        using RetType = std::invoke_result_t<F, Arg>;
+        using NewExpected = std::decay_t<RetType>;
+        using NewExpectedType = typename NewExpected::value_type;
+        using NewErrorType = typename NewExpected::error_type;
+        using NewErrorTypes = typename NewExpected::error_types;
+
+        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
+                          std::is_same_v<error_types, NewErrorTypes>),
+                      "The functor must return an expected type with the same "
+                      "value type.");
+        
         if (!has_value() && has_error<Arg>()) {
-            return Result(f(std::get<unexpected<Arg>>(result_).error()));
+            return f(noexcept_get<unexpected<Arg>>().error());
         } else {
-            return *this;
+            return transform_unexpected<Arg, NewExpected>(NewErrorTypes{});
         }
     }
 
@@ -1275,6 +1413,12 @@ class expected<void, E, Es...> {
     constexpr explicit operator bool() const noexcept { return has_value(); }
 
    private:
+    template <typename Type>
+    Type& noexcept_get()
+    {
+        return *std::get_if<Type>(&result_);
+    }
+
     template <typename Exp>
     Exp transform_expected() {
         return std::visit(
@@ -1284,6 +1428,26 @@ class expected<void, E, Es...> {
                     return typename Exp::value_type{};
                 } else {
                     return typename Exp::value_type{};
+                }
+            },
+            result_);
+    }
+
+    // Helper to transform unexpected types
+    template <typename OldE, typename Exp, typename... NewEs>
+    Exp transform_unexpected(std::tuple<NewEs...>) const {
+        return std::visit(
+            [this](auto&& arg) -> Exp {
+                using ArgType = std::decay_t<decltype(arg)>;
+                if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
+                    return arg;
+                } else {
+                    using NewE = detail::find_new_error_type_t<
+                        std::tuple<E, Es...>,
+                        std::tuple<typename Exp::error_type, NewEs...>>;
+                    return unexpected(NewE{});
+                    // static_assert(detail::always_false<ArgType>::value,
+                    // "Unhandled type in transform_unexpected");
                 }
             },
             result_);
