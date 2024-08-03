@@ -57,7 +57,7 @@ int main() {
 #include <system_error>
 
 mgutility::expected<int, std::string, std::error_code> divide(int a, int b) {
-    if (b == 0) return mgutility::unexpected{"Division by zero"};
+    if (b == 0) return mgutility::unexpected<std::string>("Division by zero");
     if (a < 0) return mgutility::unexpected{std::make_error_code(std::errc::invalid_argument)};
     return a / b;
 }
@@ -72,7 +72,7 @@ int main() {
         .transform([](int x) { return x * 2; })
         .or_else([](const std::string& err) -> mgutility::expected<int, std::string, std::error_code> {
             std::cerr << "String error: " << err << std::endl;
-            return mgutility::unexpected("Handled string error");
+            return mgutility::unexpected<std::string>("Handled string error");
         })
         .or_else([](const std::error_code& err) -> mgutility::expected<int, std::string> {
             std::cerr << "Error code: " << err.message() << std::endl;
@@ -83,8 +83,10 @@ int main() {
         std::cout << "Result: " << *result << std::endl;
     } else {
       // use result.error<std::string>() or result.error()
+      std::cerr << "Error: " << result.error() << std::endl;
     }
 }
+
 ```
 
 ## Contributing
