@@ -81,10 +81,8 @@ int main() {
 
     if (result) {
         std::cout << "Result: " << *result << std::endl;
-    } else if (result.has_error<std::error_code>()) {
-        // use result.error<std::error_code>()
     } else {
-      // use result.error<std::string>()
+      // use result.error<std::string>() or result.error()
     }
 }
 ```
