@@ -129,6 +129,36 @@ template <typename OldEs, typename NewEs>
 using find_new_error_type_t =
     typename find_new_error_type_impl<OldEs, NewEs>::type;
 
+// Helper type trait to check if a type T is present in a tuple Ts
+template <typename T, typename Tuple>
+struct is_type_in_tuple;
+
+template <typename T>
+struct is_type_in_tuple<T, std::tuple<>> : std::false_type {};
+
+template <typename T, typename U, typename... Ts>
+struct is_type_in_tuple<T, std::tuple<U, Ts...>>
+    : std::conditional_t<std::is_same_v<T, U>, std::true_type,
+                         is_type_in_tuple<T, std::tuple<Ts...>>> {};
+
+// Primary type trait to check if all types in Tuple1 are present in Tuple2
+template <typename Tuple1, typename Tuple2>
+struct are_all_types_included;
+
+template <typename Tuple2>
+struct are_all_types_included<std::tuple<>, Tuple2> : std::true_type {};
+
+template <typename T, typename... Ts, typename Tuple2>
+struct are_all_types_included<std::tuple<T, Ts...>, Tuple2>
+    : std::conditional_t<is_type_in_tuple<T, Tuple2>::value,
+                         are_all_types_included<std::tuple<Ts...>, Tuple2>,
+                         std::false_type> {};
+
+// Helper variable template to simplify usage
+template <typename Tuple1, typename Tuple2>
+inline constexpr bool are_all_types_included_v =
+    are_all_types_included<Tuple1, Tuple2>::value;
+
 }  // namespace detail
 
 template <typename E>
@@ -286,7 +316,7 @@ class expected {
    public:
     using value_type = T;
     using error_type = E;
-    using error_types = std::tuple<Es...>;
+    using error_types = std::tuple<E, Es...>;
 
     /**
      * @brief Constructs an expected object with a value.
@@ -389,7 +419,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there
+     * is no value.
      *
      * @return T& The value.
      * @throws bad_expected_access<void> If there is no value.
@@ -402,7 +433,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there
+     * is no value.
      *
      * @return const T& The value.
      * @throws bad_expected_access<void> If there is no value.
@@ -415,7 +447,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the value or throws a bad_expected_access exception if there is no value.
+     * @brief Gets the value or throws a bad_expected_access exception if there
+     * is no value.
      *
      * @return T&& The value.
      * @throws bad_expected_access<void> If there is no value.
@@ -428,8 +461,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return const E& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -444,8 +477,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return E& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -460,8 +493,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return const E&& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -476,8 +509,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return E&& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -492,8 +525,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type Err or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error& The error.
@@ -508,8 +541,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type Err or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error& The error.
@@ -524,8 +557,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type Err or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error&& The error.
@@ -540,8 +573,8 @@ class expected {
     }
 
     /**
-     * @brief Gets the unexpected error of type Err or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type Err or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error&& The error.
@@ -574,14 +607,18 @@ class expected {
      *
      * @return T&& The value.
      */
-    constexpr T&& operator*() && noexcept { return std::move(*this).template noexcept_get<T>(); }
+    constexpr T&& operator*() && noexcept {
+        return std::move(*this).template noexcept_get<T>();
+    }
 
     /**
      * @brief Arrow operator to access the value.
      *
      * @return T* Pointer to the value.
      */
-    constexpr T* operator->() noexcept { return std::addressof(noexcept_get<T>()); }
+    constexpr T* operator->() noexcept {
+        return std::addressof(noexcept_get<T>());
+    }
 
     /**
      * @brief Arrow operator to access the value.
@@ -664,7 +701,14 @@ class expected {
         std::is_nothrow_invocable<F, T&>::value) {
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
         using RetType = std::invoke_result_t<F, Arg>;
-        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+
+        static_assert(
+            std::is_same_v<T, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f(operator*());
         } else {
@@ -685,7 +729,14 @@ class expected {
         std::is_nothrow_invocable<F, const T&>::value) {
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
         using RetType = std::invoke_result_t<F, Arg>;
-        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+
+        static_assert(
+            std::is_same_v<T, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f(operator*());
         } else {
@@ -704,9 +755,16 @@ class expected {
     template <typename F>
     constexpr auto and_then(F&& f) && noexcept(
         std::is_nothrow_invocable<F, T&&>::value) {
-         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-         using RetType = std::invoke_result_t<F, Arg>;
-         static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        using RetType = std::invoke_result_t<F, Arg>;
+
+        static_assert(
+            std::is_same_v<T, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f(std::move(operator*()));
         } else {
@@ -732,11 +790,12 @@ class expected {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<T, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
-        
+
         if (!has_value() && has_error<Arg>()) {
             return f(noexcept_get<unexpected<Arg>>().error());
         } else {
@@ -762,8 +821,9 @@ class expected {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<T, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
 
@@ -792,8 +852,9 @@ class expected {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<T, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<T, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
 
@@ -818,7 +879,9 @@ class expected {
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<T, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f(value()));
         }
@@ -839,7 +902,9 @@ class expected {
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<T, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f(operator*()));
         }
@@ -860,9 +925,89 @@ class expected {
         std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
         using Result = expected<T, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<T, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<T, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
-            return Result(f(operator*()));
+            return Result(f(std::move(operator*())));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) & noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(
+                unexpected(f(noexcept_get<unexpected<Arg>>().error())));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) const& noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(
+                unexpected(f(noexcept_get<unexpected<Arg>>().error())));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) && noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<T, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(unexpected(
+                f(std::move(noexcept_get<unexpected<Arg>>().error()))));
         }
         return *this;
     }
@@ -902,8 +1047,7 @@ class expected {
 
    private:
     template <typename Type>
-    Type& noexcept_get()
-    {
+    Type& noexcept_get() {
         return *std::get_if<Type>(&result_);
     }
 
@@ -933,9 +1077,9 @@ class expected {
                 if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
                     return arg;
                 } else {
-                    using NewE = detail::find_new_error_type_t<
-                        std::tuple<E, Es...>,
-                        std::tuple<typename Exp::error_type, NewEs...>>;
+                    using NewE =
+                        detail::find_new_error_type_t<std::tuple<Es...>,
+                                                      std::tuple<NewEs...>>;
                     return unexpected(NewE{});
                 }
             },
@@ -957,7 +1101,8 @@ class expected {
                                   !std::is_same_v<ArgType, T> &&
                                   !std::is_same_v<ArgType, E>) {
                         THROW_EXCEPTION(
-                            bad_expected_access<typename ArgType::value_type>(arg.error()));
+                            bad_expected_access<typename ArgType::value_type>(
+                                arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
@@ -978,7 +1123,7 @@ class expected<void, E, Es...> {
    public:
     using value_type = void;
     using error_type = E;
-    using error_types = std::tuple<Es...>;
+    using error_types = std::tuple<E, Es...>;
 
     /**
      * @brief Constructs an expected object with no value (void specialization).
@@ -1074,8 +1219,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return const E& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -1090,8 +1235,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return E& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -1106,8 +1251,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return const E&& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -1122,8 +1267,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of type E or throws a bad_expected_access exception if
-     * there is no error.
+     * @brief Gets the unexpected error of type E or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @return E&& The error.
      * @throws bad_expected_access<E> If there is no error.
@@ -1138,8 +1283,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
-     * if there is no error.
+     * @brief Gets the unexpected error of the given type or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error& The error.
@@ -1154,8 +1299,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
-     * if there is no error.
+     * @brief Gets the unexpected error of the given type or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error& The error.
@@ -1170,8 +1315,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
-     * if there is no error.
+     * @brief Gets the unexpected error of the given type or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return const Error&& The error.
@@ -1186,8 +1331,8 @@ class expected<void, E, Es...> {
     }
 
     /**
-     * @brief Gets the unexpected error of the given type or throws a bad_expected_access exception
-     * if there is no error.
+     * @brief Gets the unexpected error of the given type or throws a
+     * bad_expected_access exception if there is no error.
      *
      * @tparam Error The type of the error.
      * @return Error&& The error.
@@ -1214,7 +1359,13 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
         using RetType = std::invoke_result_t<F, Arg>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f();
         } else {
@@ -1235,7 +1386,13 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
         using RetType = std::invoke_result_t<F, Arg>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f();
         } else {
@@ -1256,7 +1413,13 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
         using RetType = std::invoke_result_t<F, Arg>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg> &&
+                detail::are_all_types_included_v<error_types,
+                                                 typename RetType::error_types>,
+            "Argument type should be same type of expected value type and the "
+            "function should include all unexpected types from current "
+            "expected object.");
         if (has_value()) {
             return f();
         } else {
@@ -1282,11 +1445,12 @@ class expected<void, E, Es...> {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<void, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
-        
+
         if (!has_value() && has_error<Arg>()) {
             return f(noexcept_get<unexpected<Arg>>().error());
         } else {
@@ -1312,11 +1476,12 @@ class expected<void, E, Es...> {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<void, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
-        
+
         if (!has_value() && has_error<Arg>()) {
             return f(noexcept_get<unexpected<Arg>>().error());
         } else {
@@ -1342,11 +1507,12 @@ class expected<void, E, Es...> {
         using NewErrorType = typename NewExpected::error_type;
         using NewErrorTypes = typename NewExpected::error_types;
 
-        static_assert(std::is_same_v<void, NewExpectedType> && (std::is_same_v<E, NewErrorType> ||
-                          std::is_same_v<error_types, NewErrorTypes>),
+        static_assert(std::is_same_v<void, NewExpectedType> &&
+                          (std::is_same_v<E, NewErrorType> ||
+                           std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
-        
+
         if (!has_value() && has_error<Arg>()) {
             return f(noexcept_get<unexpected<Arg>>().error());
         } else {
@@ -1368,7 +1534,9 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
         }
@@ -1389,7 +1557,9 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
         }
@@ -1410,9 +1580,89 @@ class expected<void, E, Es...> {
         std::is_nothrow_invocable<F>::value) {
         using Result = expected<void, E, Es...>;
         using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        static_assert(std::is_same_v<void, Arg>, "Argument type should be same type of expected value type.");
+        static_assert(
+            std::is_same_v<void, Arg>,
+            "Argument type should be same type of expected value type.");
         if (has_value()) {
             return Result(f());
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) & noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(
+                unexpected(f(noexcept_get<unexpected<Arg>>().error())));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) const& noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(
+                unexpected(f(noexcept_get<unexpected<Arg>>().error())));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Calls the provided function with the error if present and of the
+     * matching type, and returns a new expected object with the transformed
+     * error.
+     *
+     * @tparam F The type of the function to call.
+     * @param f The function to call with the error.
+     * @return A new expected object with the transformed error or the original
+     * expected object.
+     */
+    template <typename F>
+    constexpr auto transform_error(F&& f) && noexcept(
+        std::is_nothrow_invocable<F, detail::first_argument<F>>::value) {
+        using Result = expected<void, E, Es...>;
+        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
+        static_assert(detail::is_one_of_v<Arg, E, Es...>,
+                      "Argument type should be same type from the one of "
+                      "unexpected types.");
+
+        if (!has_value() && has_error<Arg>()) {
+            return Result(unexpected(
+                f(std::move(noexcept_get<unexpected<Arg>>().error()))));
         }
         return *this;
     }
@@ -1437,8 +1687,7 @@ class expected<void, E, Es...> {
 
    private:
     template <typename Type>
-    Type& noexcept_get()
-    {
+    Type& noexcept_get() {
         return *std::get_if<Type>(&result_);
     }
 
@@ -1489,7 +1738,8 @@ class expected<void, E, Es...> {
                     if constexpr (!std::is_same_v<ArgType, std::monostate> &&
                                   !std::is_same_v<ArgType, E>) {
                         THROW_EXCEPTION(
-                            bad_expected_access<typename ArgType::value_type>(arg.error()));
+                            bad_expected_access<typename ArgType::value_type>(
+                                arg.error()));
                     } else {
                         THROW_EXCEPTION(bad_expected_access<void>());
                     }
