@@ -429,7 +429,7 @@ class expected {
         if (!has_value()) {
             throw_bad_expected_access();
         }
-        return std::get<T>(result_);
+        return noexcept_get<T>();
     }
 
     /**
@@ -443,7 +443,7 @@ class expected {
         if (!has_value()) {
             throw_bad_expected_access();
         }
-        return std::get<T>(result_);
+        return noexcept_get<T>();
     }
 
     /**
@@ -457,7 +457,7 @@ class expected {
         if (!has_value()) {
             throw_bad_expected_access();
         }
-        return std::get<T>(std::move(result_));
+        return std::move(noexcept_get<T>());
     }
 
     /**
@@ -473,7 +473,7 @@ class expected {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::get<unexpected<E>>(result_).error();
+        return noexcept_get<unexpected<E>>().error();
     }
 
     /**
@@ -489,7 +489,7 @@ class expected {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::get<unexpected<E>>(result_).error();
+        return noexcept_get<unexpected<E>>().error();
     }
 
     /**
@@ -505,7 +505,7 @@ class expected {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::move(std::get<unexpected<E>>(result_).error());
+        return std::move(noexcept_get<unexpected<E>>().error());
     }
 
     /**
@@ -521,7 +521,7 @@ class expected {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::move(std::get<unexpected<E>>(result_).error());
+        return std::move(noexcept_get<unexpected<E>>().error());
     }
 
     /**
@@ -537,7 +537,7 @@ class expected {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::get<unexpected<Error>>(result_).error();
+        return noexcept_get<unexpected<Error>>().error();
     }
 
     /**
@@ -553,7 +553,7 @@ class expected {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::get<unexpected<Error>>(result_).error();
+        return noexcept_get<unexpected<Error>>().error();
     }
 
     /**
@@ -569,7 +569,7 @@ class expected {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::move(std::get<unexpected<Error>>(result_).error());
+        return std::move(noexcept_get<unexpected<Error>>().error());
     }
 
     /**
@@ -585,7 +585,7 @@ class expected {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::move(std::get<unexpected<Error>>(result_).error());
+        return std::move(noexcept_get<unexpected<Error>>().error());
     }
 
     /**
@@ -1026,7 +1026,7 @@ class expected {
     T& emplace(Args&&... args) noexcept(
         std::is_nothrow_constructible<T, Args...>::value) {
         result_.template emplace<T>(std::forward<Args>(args)...);
-        return std::get<T>(result_);
+        return noexcept_get<T>();
     }
 
     /**
@@ -1073,7 +1073,7 @@ class expected {
 
     // Helper to transform unexpected types
     template <typename OldE, typename Exp, typename... NewEs>
-    Exp transform_unexpected(std::tuple<NewEs...>) const {
+    Exp transform_unexpected(std::tuple<NewEs...>) {
         return std::visit(
             [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
@@ -1091,7 +1091,7 @@ class expected {
 
     // Helper function to throw a bad_expected_access with the correct error
     // type
-    void throw_bad_expected_access() const {
+    void throw_bad_expected_access() {
         if (has_value()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         } else if (has_error<E>()) {
@@ -1234,7 +1234,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::get<unexpected<E>>(result_).error();
+        return noexcept_get<unexpected<E>>().error();
     }
 
     /**
@@ -1250,7 +1250,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::get<unexpected<E>>(result_).error();
+        return noexcept_get<unexpected<E>>().error();
     }
 
     /**
@@ -1266,7 +1266,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::move(std::get<unexpected<E>>(result_).error());
+        return std::move(noexcept_get<unexpected<E>>().error());
     }
 
     /**
@@ -1282,7 +1282,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         }
-        return std::move(std::get<unexpected<E>>(result_).error());
+        return std::move(noexcept_get<unexpected<E>>().error());
     }
 
     /**
@@ -1298,7 +1298,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::get<unexpected<Error>>(result_).error();
+        return noexcept_get<unexpected<Error>>().error();
     }
 
     /**
@@ -1314,7 +1314,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::get<unexpected<Error>>(result_).error();
+        return noexcept_get<unexpected<Error>>().error();
     }
 
     /**
@@ -1330,7 +1330,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::move(std::get<unexpected<Error>>(result_).error());
+        return std::move(noexcept_get<unexpected<Error>>().error());
     }
 
     /**
@@ -1346,7 +1346,7 @@ class expected<void, E, Es...> {
         if (has_value() || !has_error<Error>()) {
             throw_bad_expected_access();
         }
-        return std::move(std::get<unexpected<Error>>(result_).error());
+        return std::move(noexcept_get<unexpected<Error>>().error());
     }
 
     /**
@@ -1712,7 +1712,7 @@ class expected<void, E, Es...> {
 
     // Helper to transform unexpected types
     template <typename OldE, typename Exp, typename... NewEs>
-    Exp transform_unexpected(std::tuple<NewEs...>) const {
+    Exp transform_unexpected(std::tuple<NewEs...>) {
         return std::visit(
             [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
@@ -1732,7 +1732,7 @@ class expected<void, E, Es...> {
 
     // Helper function to throw a bad_expected_access with the correct error
     // type
-    void throw_bad_expected_access() const {
+    void throw_bad_expected_access() {
         if (has_value()) {
             THROW_EXCEPTION(bad_expected_access<void>());
         } else if (has_error<E>()) {
@@ -1800,26 +1800,6 @@ template <typename E>
 constexpr unexpected<E> make_unexpected(E&& error) noexcept(
     std::is_nothrow_constructible<unexpected<E>, E&&>::value) {
     return unexpected<E>(std::forward<E>(error));
-}
-
-/**
- * @brief Helper function to create an unexpected instance from an error code.
- *
- * @param error The error code to store in the unexpected object.
- * @return unexpected<std::error_code> The created unexpected object.
- */
-unexpected<std::error_code> make_unexpected(std::errc error) noexcept {
-    return unexpected<std::error_code>(std::make_error_code(error));
-}
-
-/**
- * @brief Helper function to create an unexpected instance from an error code.
- *
- * @param error The error code to store in the unexpected object.
- * @return unexpected<std::error_code> The created unexpected object.
- */
-unexpected<std::error_code> make_unexpected(std::error_code error) noexcept {
-    return unexpected<std::error_code>(error);
 }
 
 }  // namespace mgutility
