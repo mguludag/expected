@@ -26,9 +26,7 @@ SOFTWARE.
 #define MGUTILITY_EXPECTED_HPP
 
 #include <cstdlib>  // For std::terminate
-#include <optional>
 #include <stdexcept>
-#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -46,6 +44,48 @@ namespace detail {
 // Helper to trigger static_assert for unhandled types
 template <typename T>
 struct always_false : std::false_type {};
+
+// Define the typelist
+template <typename... Types>
+struct typelist {};
+
+// Size of typelist
+template <typename TList>
+struct size;
+
+template <typename... Types>
+struct size<typelist<Types...>> {
+    static constexpr std::size_t value = sizeof...(Types);
+};
+
+// Accessing elements
+template <std::size_t N, typename TList>
+struct type_at;
+
+template <std::size_t N, typename Head, typename... Tail>
+struct type_at<N, typelist<Head, Tail...>> {
+    using type = typename type_at<N - 1, typelist<Tail...>>::type;
+};
+
+template <typename Head, typename... Tail>
+struct type_at<0, typelist<Head, Tail...>> {
+    using type = Head;
+};
+
+template <std::size_t N, typename TList>
+using type_at_t = typename type_at<N, TList>::type;
+
+// Append a type
+template <typename TList, typename NewType>
+struct append;
+
+template <typename... Types, typename NewType>
+struct append<typelist<Types...>, NewType> {
+    using type = typelist<Types..., NewType>;
+};
+
+template <typename TList, typename NewType>
+using append_t = typename append<TList, NewType>::type;
 
 // Helper metafunction to check if a type is in a list of types
 template <typename T, typename... Ts>
@@ -104,60 +144,60 @@ template <typename OldEs, typename NewEs>
 struct find_new_error_type_impl;
 
 template <typename... OldEs, typename... NewEs>
-struct find_new_error_type_impl<std::tuple<OldEs...>, std::tuple<NewEs...>> {
-    using type = std::tuple<NewEs...>;
+struct find_new_error_type_impl<typelist<OldEs...>, typelist<NewEs...>> {
+    using type = typelist<NewEs...>;
 };
 
 template <typename OldE, typename... OldEs, typename NewE, typename... NewEs>
-struct find_new_error_type_impl<std::tuple<OldE, OldEs...>,
-                                std::tuple<NewE, NewEs...>> {
-    using type = typename find_new_error_type_impl<std::tuple<OldEs...>,
-                                                   std::tuple<NewE>>::type;
+struct find_new_error_type_impl<typelist<OldE, OldEs...>,
+                                typelist<NewE, NewEs...>> {
+    using type = typename find_new_error_type_impl<typelist<OldEs...>,
+                                                   typelist<NewE>>::type;
 };
 
 template <typename... OldEs, typename NewE, typename... NewEs>
-struct find_new_error_type_impl<std::tuple<OldEs...>,
-                                std::tuple<NewE, NewEs...>> {
-    using type = std::conditional_t<
-        is_one_of_v<NewE, OldEs...>,
-        typename find_new_error_type_impl<std::tuple<OldEs...>,
-                                          std::tuple<NewEs...>>::type,
-        NewE>;
+struct find_new_error_type_impl<typelist<OldEs...>, typelist<NewE, NewEs...>> {
+    using type =
+        std::conditional_t<is_one_of_v<NewE, OldEs...>,
+                           typename find_new_error_type_impl<
+                               typelist<OldEs...>, typelist<NewEs...>>::type,
+                           NewE>;
 };
 
 template <typename OldEs, typename NewEs>
 using find_new_error_type_t =
     typename find_new_error_type_impl<OldEs, NewEs>::type;
 
-// Helper type trait to check if a type T is present in a tuple Ts
-template <typename T, typename Tuple>
-struct is_type_in_tuple;
+// Helper type trait to check if a type T is present in a typelist Ts
+template <typename T, typename TypeList>
+struct is_type_in_typelist;
 
 template <typename T>
-struct is_type_in_tuple<T, std::tuple<>> : std::false_type {};
+struct is_type_in_typelist<T, typelist<>> : std::false_type {};
 
 template <typename T, typename U, typename... Ts>
-struct is_type_in_tuple<T, std::tuple<U, Ts...>>
+struct is_type_in_typelist<T, typelist<U, Ts...>>
     : std::conditional_t<std::is_same_v<T, U>, std::true_type,
-                         is_type_in_tuple<T, std::tuple<Ts...>>> {};
+                         is_type_in_typelist<T, typelist<Ts...>>> {};
 
-// Primary type trait to check if all types in Tuple1 are present in Tuple2
-template <typename Tuple1, typename Tuple2>
+// Primary type trait to check if all types in TypeList1 are present in
+// TypeList2
+template <typename TypeList1, typename TypeList2>
 struct are_all_types_included;
 
-template <typename Tuple2>
-struct are_all_types_included<std::tuple<>, Tuple2> : std::true_type {};
+template <typename TypeList2>
+struct are_all_types_included<typelist<>, TypeList2> : std::true_type {};
 
-template <typename T, typename... Ts, typename Tuple2>
-struct are_all_types_included<std::tuple<T, Ts...>, Tuple2>
-    : std::conditional_t<is_type_in_tuple<T, Tuple2>::value,
-                         are_all_types_included<std::tuple<Ts...>, Tuple2>,
+template <typename T, typename... Ts, typename TypeList2>
+struct are_all_types_included<typelist<T, Ts...>, TypeList2>
+    : std::conditional_t<is_type_in_typelist<T, TypeList2>::value,
+                         are_all_types_included<typelist<Ts...>, TypeList2>,
                          std::false_type> {};
 
 // Helper variable template to simplify usage
-template <typename Tuple1, typename Tuple2>
+template <typename TypeList1, typename TypeList2>
 inline constexpr bool are_all_types_included_v =
-    are_all_types_included<Tuple1, Tuple2>::value;
+    are_all_types_included<TypeList1, TypeList2>::value;
 
 }  // namespace detail
 
@@ -316,7 +356,7 @@ class expected {
    public:
     using value_type = T;
     using error_type = E;
-    using error_types = std::tuple<E, Es...>;
+    using error_types = detail::typelist<E, Es...>;
 
     /**
      * @brief Constructs an expected object with a value.
@@ -1073,16 +1113,15 @@ class expected {
 
     // Helper to transform unexpected types
     template <typename OldE, typename Exp, typename... NewEs>
-    Exp transform_unexpected(std::tuple<NewEs...>) {
+    Exp transform_unexpected(detail::typelist<NewEs...>) {
         return std::visit(
             [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
                 if constexpr (!std::is_same_v<ArgType, unexpected<OldE>>) {
                     return arg;
                 } else {
-                    using NewE =
-                        detail::find_new_error_type_t<std::tuple<Es...>,
-                                                      std::tuple<NewEs...>>;
+                    using NewE = detail::find_new_error_type_t<
+                        detail::typelist<Es...>, detail::typelist<NewEs...>>;
                     return unexpected(NewE{});
                 }
             },
@@ -1126,7 +1165,7 @@ class expected<void, E, Es...> {
    public:
     using value_type = void;
     using error_type = E;
-    using error_types = std::tuple<E, Es...>;
+    using error_types = detail::typelist<E, Es...>;
 
     /**
      * @brief Constructs an expected object with no value (void specialization).
@@ -1712,7 +1751,7 @@ class expected<void, E, Es...> {
 
     // Helper to transform unexpected types
     template <typename OldE, typename Exp, typename... NewEs>
-    Exp transform_unexpected(std::tuple<NewEs...>) {
+    Exp transform_unexpected(detail::typelist<NewEs...>) {
         return std::visit(
             [](auto&& arg) -> Exp {
                 using ArgType = std::decay_t<decltype(arg)>;
@@ -1720,8 +1759,8 @@ class expected<void, E, Es...> {
                     return arg;
                 } else {
                     using NewE = detail::find_new_error_type_t<
-                        std::tuple<E, Es...>,
-                        std::tuple<typename Exp::error_type, NewEs...>>;
+                        detail::typelist<E, Es...>,
+                        detail::typelist<typename Exp::error_type, NewEs...>>;
                     return unexpected(NewE{});
                     // static_assert(detail::always_false<ArgType>::value,
                     // "Unhandled type in transform_unexpected");
