@@ -791,7 +791,8 @@ class expected {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<T, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
@@ -822,7 +823,8 @@ class expected {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<T, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
@@ -853,7 +855,8 @@ class expected {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<T, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
@@ -1446,7 +1449,8 @@ class expected<void, E, Es...> {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<void, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
@@ -1477,7 +1481,8 @@ class expected<void, E, Es...> {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<void, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
@@ -1508,7 +1513,8 @@ class expected<void, E, Es...> {
         using NewErrorTypes = typename NewExpected::error_types;
 
         static_assert(std::is_same_v<void, NewExpectedType> &&
-                          (std::is_same_v<E, NewErrorType> ||
+                          (detail::is_one_of_v<Arg, E, Es...> ||
+                           std::is_same_v<E, NewErrorType> ||
                            std::is_same_v<error_types, NewErrorTypes>),
                       "The functor must return an expected type with the same "
                       "value type.");
