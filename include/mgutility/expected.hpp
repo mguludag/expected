@@ -214,11 +214,13 @@ struct is_unexpected<unexpected<E>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_unexpected_v = is_unexpected<T>::value;
 
+template <typename E>
 struct unexpect_t {
     explicit unexpect_t() = default;
 };
 
-inline constexpr unexpect_t unexpect{};
+template <typename E>
+inline constexpr unexpect_t<E> unexpect{};
 
 /**
  * @brief Exception class for accessing a bad expected value.
@@ -417,11 +419,10 @@ class expected {
      * @param args The arguments to construct the value.
      */
     template <typename Error, typename... Args>
-    constexpr explicit expected(unexpect_t, Args&&... args) noexcept(
+    constexpr explicit expected(unexpect_t<Error>, Args&&... args) noexcept(
         std::is_nothrow_constructible<Error, Args...>::value)
         : result_(std::in_place_type<unexpected<Error>>,
-                  unexpected(std::in_place_type<Error>,
-                             std::forward<Args>(args)...)) {}
+                  unexpected(std::in_place_t{}, std::forward<Args>(args)...)) {}
 
     /**
      * @brief Checks if the expected object contains a value.
@@ -1207,11 +1208,11 @@ class expected<void, E, Es...> {
      * @param args The arguments to construct the value.
      */
     template <typename Error, typename... Args>
-    constexpr explicit expected(unexpect_t, Args&&... args) noexcept(
+    constexpr explicit expected(unexpect_t<Error>, Args&&... args) noexcept(
         std::is_nothrow_constructible<Error, Args...>::value)
         : result_(std::in_place_type<unexpected<Error>>,
-                  unexpected(std::in_place_type<Error>,
-                             std::forward<Args>(args)...)) {}
+                  unexpected<Error>(std::in_place_t{},
+                                    std::forward<Args>(args)...)) {}
 
     /**
      * @brief Checks if the expected object contains a value.
