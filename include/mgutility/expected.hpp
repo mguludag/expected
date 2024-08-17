@@ -1739,7 +1739,7 @@ class expected<void, E, Es...> {
         return std::visit(
             [](auto&&) -> Exp {
                 if constexpr (std::is_same_v<typename Exp::value_type, void>) {
-                    return typename Exp::value_type{};
+                    return std::monostate{};
                 } else {
                     return typename Exp::value_type{};
                 }
