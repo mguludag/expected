@@ -1400,10 +1400,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) & noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, Arg>;
+        using RetType = std::invoke_result_t<F>;
         static_assert(
-            std::is_same_v<void, Arg> &&
+            std::is_invocable_v<F> &&
                 detail::are_all_types_included_v<error_types,
                                                  typename RetType::error_types>,
             "Argument type should be same type of expected value type and the "
@@ -1427,10 +1426,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) const& noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, Arg>;
+        using RetType = std::invoke_result_t<F>;
         static_assert(
-            std::is_same_v<void, Arg> &&
+            std::is_invocable_v<F> &&
                 detail::are_all_types_included_v<error_types,
                                                  typename RetType::error_types>,
             "Argument type should be same type of expected value type and the "
@@ -1454,10 +1452,9 @@ class expected<void, E, Es...> {
     template <typename F>
     constexpr auto and_then(F&& f) && noexcept(
         std::is_nothrow_invocable<F>::value) {
-        using Arg = detail::remove_cvref_t<detail::first_argument<F>>;
-        using RetType = std::invoke_result_t<F, Arg>;
+        using RetType = std::invoke_result_t<F>;
         static_assert(
-            std::is_same_v<void, Arg> &&
+            std::is_invocable_v<F> &&
                 detail::are_all_types_included_v<error_types,
                                                  typename RetType::error_types>,
             "Argument type should be same type of expected value type and the "
